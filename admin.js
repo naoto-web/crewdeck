@@ -40,8 +40,9 @@ function computeWarnings() {
   const cfg = Admin.data.config;
   const cellFlags = {}; // key → [msg]
   const msgs = [];
-  const workedDays = {}; // id → Set(day)
-  admMembers().forEach(m => workedDays[m.id] = new Set());
+  const workedDays = {};  // id → Set(day)
+  const slotCounts = {};  // id → {a, p}
+  admMembers().forEach(m => { workedDays[m.id] = new Set(); slotCounts[m.id] = { a: 0, p: 0 }; });
 
   for (let d = 1; d <= Admin.data.days; d++) {
     ['a', 'p'].forEach(s => {
@@ -49,8 +50,12 @@ function computeWarnings() {
       const ids = Admin.draftIdx[key] || [];
       const flags = [];
       if (ids.length < 2) flags.push(ids.length === 0 ? '空き' : '1人');
+      if (ids.length === 1) {
+        const lone = Admin.data.members.find(m => m.id === ids[0]);
+        if (lone && lone.noSolo) flags.push('単独NG:' + lone.name);
+      }
       ids.forEach(id => {
-        workedDays[id] && workedDays[id].add(d);
+        if (workedDays[id]) { workedDays[id].add(d); slotCounts[id][s]++; }
         if (wishAt(id, d, s) === 'x') flags.push('×踏み:' + nameOfA(id));
       });
       if (ids.length === 2 && cfg.ngPairs.some(p =>
@@ -76,13 +81,13 @@ function computeWarnings() {
   Object.keys(cellFlags).forEach(k => {
     const p = k.split('|');
     cellFlags[k].forEach(f => {
-      if (f.startsWith('×踏み') || f === 'NGペア') {
+      if (f.startsWith('×踏み') || f === 'NGペア' || f.startsWith('単独NG')) {
         msgs.push(`⚠️ ${p[0]}日${p[1] === 'a' ? '前半' : '後半'}：${f}`);
       }
     });
   });
 
-  return { cellFlags, msgs, workedDays };
+  return { cellFlags, msgs, workedDays, slotCounts };
 }
 
 function nameOfA(id) {
@@ -96,14 +101,16 @@ async function renderBuild() {
   // 未保存の調整があるときだけキャッシュ維持。それ以外は毎回最新を取得（後から届く希望を取りこぼさない）
   try { await loadAdmin(!Admin.dirty); } catch (e) { toast(e.message, true); return; }
   const data = Admin.data;
-  const { cellFlags, msgs, workedDays } = computeWarnings();
+  const { cellFlags, msgs, workedDays, slotCounts } = computeWarnings();
   const pub = data.published;
 
+  // 人別の出勤日数（前半/後半内訳）を常時表示。上限超過は赤・希望未提出は「未」
   const memberChips = admMembers().map(m => {
     const days = workedDays[m.id] ? workedDays[m.id].size : 0;
+    const sc = slotCounts[m.id] || { a: 0, p: 0 };
     const over = days > m.maxDays;
     const noWish = !data.wishes[m.id];
-    return `<span class="mchip ${over ? 'over' : ''}">${esc(m.name)} ${days}${m.targetDays ? '/' + m.targetDays : ''}日${noWish ? '<b class="nosub">未</b>' : ''}</span>`;
+    return `<span class="mchip ${over ? 'over' : ''}">${esc(m.name)} <b>${days}${m.targetDays ? '/' + m.targetDays : ''}日</b>（前${sc.a}・後${sc.p}）${noWish ? '<b class="nosub">未</b>' : ''}</span>`;
   }).join('');
 
   let rows = '';
