@@ -1,5 +1,5 @@
 // Service Worker：アプリシェルのみキャッシュ（APIは常にネットワーク）
-const CACHE = 'crewdeck-v1';
+const CACHE = 'crewdeck-v2';
 const SHELL = ['./', 'index.html', 'style.css', 'config.js', 'api.js', 'app.js', 'member.js', 'admin.js', 'manifest.json', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
