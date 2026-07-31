@@ -225,12 +225,22 @@ function openCellEditor(key) {
   paint();
 }
 
-// ── 希望一覧（マトリクス） ─────────────────────
+// ── 希望一覧（マトリクス・タップ編集可＝スタッフの代理入力） ─────
 
 async function renderMatrix() {
-  try { await loadAdmin(); } catch (e) { toast(e.message, true); return; }
+  try { await loadAdmin(true); } catch (e) { toast(e.message, true); return; }
   const data = Admin.data;
   const ms = admMembers();
+
+  // 編集用ローカル状態（保存するまでサーバーには送らない）
+  const edit = {};
+  ms.forEach(m => {
+    edit[m.id] = {};
+    for (let d = 1; d <= data.days; d++) {
+      edit[m.id][d] = { a: wishAt(m.id, d, 'a'), p: wishAt(m.id, d, 'p') };
+    }
+  });
+  const dirty = new Set();
 
   let head = '<tr><th></th>' + ms.map(m =>
     `<th>${esc(m.name)}${!data.wishes[m.id] ? '<br><span class="nosub">未</span>' : ''}</th>`).join('') + '</tr>';
@@ -240,8 +250,8 @@ async function renderMatrix() {
       body += `<tr class="${isWeekend(App.month, d) ? 'wknd' : ''}">
         <th class="mx-day">${s === 'a' ? dayLabel(App.month, d) + ' 前' : '　後'}</th>
         ${ms.map(m => {
-          const w = wishAt(m.id, d, s);
-          return `<td class="${WISH[w].cls}">${WISH[w].mark}</td>`;
+          const w = edit[m.id][d][s];
+          return `<td class="${WISH[w].cls} mx-cell" data-m="${m.id}" data-d="${d}" data-s="${s}">${WISH[w].mark}</td>`;
         }).join('')}
       </tr>`;
     });
@@ -250,16 +260,56 @@ async function renderMatrix() {
   const memos = ms.filter(m => data.wishes[m.id] && data.wishes[m.id].memo)
     .map(m => `<div>・<b>${esc(m.name)}</b>：${esc(data.wishes[m.id].memo)}</div>`).join('');
   const subs = ms.filter(m => data.wishes[m.id])
-    .map(m => `<div>・${esc(m.name)}：${esc(data.wishes[m.id].submittedAt)}（${data.wishes[m.id].count}回目）</div>`).join('');
+    .map(m => {
+      const w = data.wishes[m.id];
+      const proxy = w.by && w.by !== m.id ? '・' + esc(nameOfA(w.by)) + 'が代理入力' : '';
+      return `<div>・${esc(m.name)}：${esc(w.submittedAt)}（${w.count}回目${proxy}）</div>`;
+    }).join('');
 
   view().innerHTML = `
     ${monthNavHtml()}
-    <div class="hint">最新の提出内容（提出履歴はすべてスプレッドシートに残っています）</div>
+    <div class="hint">セルをタップで ○→△→× 切替。「保存」でその人の希望として記録されます（スタッフの代理入力としてログに残る）</div>
+    <div class="toolbar">
+      <button class="btn sm primary" id="btn-wish-save" disabled>保存</button>
+      <span class="dirty-info" id="dirty-info"></span>
+    </div>
     <div class="mx-wrap"><table class="matrix"><thead>${head}</thead><tbody>${body}</tbody></table></div>
     ${memos ? '<div class="notes"><b>メモ</b><br>' + memos + '</div>' : ''}
-    ${subs ? '<div class="notes"><b>提出日時</b><br>' + subs + '</div>' : ''}
+    ${subs ? '<div class="notes"><b>最終提出</b><br>' + subs + '</div>' : ''}
     <div class="spacer"></div>`;
-  bindMonthNav(async () => { await loadAdmin(); renderMatrix(); });
+  bindMonthNav(renderMatrix);
+
+  const saveBtn = document.getElementById('btn-wish-save');
+  const info = document.getElementById('dirty-info');
+  function refreshBar() {
+    saveBtn.disabled = dirty.size === 0;
+    info.textContent = dirty.size ? '未保存：' + [...dirty].map(nameOfA).join('・') : '';
+  }
+  document.querySelectorAll('.mx-cell').forEach(td => {
+    td.onclick = () => {
+      const m = td.dataset.m, d = td.dataset.d, s = td.dataset.s;
+      const next = edit[m][d][s] === 'o' ? 'd' : edit[m][d][s] === 'd' ? 'x' : 'o';
+      edit[m][d][s] = next;
+      td.className = WISH[next].cls + ' mx-cell';
+      td.textContent = WISH[next].mark;
+      dirty.add(m);
+      refreshBar();
+    };
+  });
+  saveBtn.onclick = async () => {
+    const targets = [...dirty];
+    try {
+      for (const id of targets) {
+        await api('saveWishes', {
+          month: App.month, forId: id, payload: edit[id],
+          memo: data.wishes[id] ? data.wishes[id].memo : ''
+        });
+      }
+      toast(targets.map(nameOfA).join('・') + ' の希望を保存しました');
+      renderMatrix();
+    } catch (e) { toast(e.message, true); }
+  };
+  refreshBar();
 }
 
 // ── 承認・記録 ────────────────────────────────
