@@ -64,6 +64,15 @@ function computeWarnings() {
       }
       if (flags.length) cellFlags[key] = flags;
     });
+    // 前後通し出勤の検出（手動編集で入り得る。ルール＝通しなし）
+    const both = (Admin.draftIdx[d + '|a'] || []).filter(id => (Admin.draftIdx[d + '|p'] || []).includes(id));
+    both.forEach(id => {
+      ['a', 'p'].forEach(s => {
+        const key = d + '|' + s;
+        (cellFlags[key] = cellFlags[key] || []).push('通し:' + nameOfA(id));
+      });
+      msgs.push(`⚠️ ${d}日：${nameOfA(id)}が前後通し（ルール＝通しなし）`);
+    });
   }
 
   admMembers().forEach(m => {
