@@ -114,9 +114,11 @@ async function renderBuild() {
         const key = d + '|' + s;
         const ids = Admin.draftIdx[key] || [];
         const flags = cellFlags[key] || [];
+        const tag = raceTag(data.raceInfo[key]);
         return `<button class="bd-cell ${flags.length ? 'warn' : ''}" data-key="${key}">
           ${ids.length ? ids.map(id => `<span class="chip">${esc(nameOfA(id))}</span>`).join('') : '<span class="chip none">＋</span>'}
           ${flags.length ? `<span class="badge">${flags[0]}</span>` : ''}
+          ${tag ? `<span class="rbadge">${tag}</span>` : ''}
         </button>`;
       }).join('')}
     </div>`;
@@ -126,6 +128,7 @@ async function renderBuild() {
     ${monthNavHtml()}
     <div class="hint">${pub ? `公開中：版${pub.version}（${esc(pub.publishedAt)}・${pub.status === 'confirmed' ? '確定済み' : '承認待ち'}）` : 'まだ未公開の月です'}${Admin.dirty ? '　<b class="dirty">未保存の調整あり</b>' : ''}</div>
     <div class="toolbar">
+      <button class="btn sm" id="btn-race">レース情報取得</button>
       <button class="btn sm" id="btn-gen">たたき台生成</button>
       <button class="btn sm" id="btn-save">保存</button>
       <button class="btn sm primary" id="btn-pub">公開</button>
@@ -138,6 +141,16 @@ async function renderBuild() {
     <div class="spacer"></div>
     <div id="modal-root"></div>`;
   bindMonthNav(async () => { await loadAdmin(); renderBuild(); });
+
+  document.getElementById('btn-race').onclick = async () => {
+    try {
+      const res = await api('fetchRaceInfo', { month: App.month });
+      toast(`取得OK：ガールズ${res.girlsDays}日・グレード(G3以上)${res.gradeDays}日`);
+      if (res.notes && res.notes.length) console.warn(res.notes);
+      await loadAdmin(true);
+      renderBuild();
+    } catch (e) { toast(e.message, true); }
+  };
 
   document.getElementById('btn-gen').onclick = async () => {
     if (Object.keys(Admin.draftIdx).some(k => (Admin.draftIdx[k] || []).length) &&
@@ -185,10 +198,12 @@ function openCellEditor(key) {
   const root = document.getElementById('modal-root');
 
   function paint() {
+    const rinfo = Admin.data.raceInfo[key];
     root.innerHTML = `
       <div class="modal-bg">
         <div class="modal">
           <div class="modal-title">${dayLabel(App.month, day)} ${slot === 'a' ? '前半' : '後半'}（2人まで）</div>
+          ${rinfo && rinfo.venues ? `<div class="modal-sub">${esc(rinfo.venues)}</div>` : ''}
           ${admMembers().map(m => {
             const w = wishAt(m.id, day, slot);
             const sel = cur.includes(m.id);
