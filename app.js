@@ -38,6 +38,15 @@ function isWeekend(month, day) {
   return w === 0 || w === 6;
 }
 
+// レース情報の注目タグ（G3以上のグレード＋ガールズのみ表示。F1/F2は日常なので出さない）
+function raceTag(info) {
+  if (!info) return '';
+  const parts = [];
+  if ({ GP: 1, G1: 1, G2: 1, G3: 1 }[info.grade]) parts.push(info.grade);
+  if (info.girls) parts.push('ガ');
+  return parts.join('');
+}
+
 function esc(s) {
   return String(s === undefined || s === null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
