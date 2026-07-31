@@ -92,6 +92,8 @@ table.matrix { border-collapse: collapse; font-size: 13px; min-width: 100%; }
 table.matrix th, table.matrix td { border: 1px solid #2a2e3d; padding: 5px 7px; text-align: center; white-space: nowrap; }
 table.matrix thead th { position: sticky; top: 0; background: var(--panel); }
 .mx-day { background: var(--panel); font-weight: 600; font-size: 12px; text-align: left; }
+.mx-cell { cursor: pointer; min-width: 40px; font-size: 15px; font-weight: 700; }
+.dirty-info { color: var(--warn); font-size: 12px; align-self: center; }
 tr.wknd .mx-day { color: var(--warn); }
 td.w-o, td.w-d, td.w-x { border-color: #2a2e3d !important; }
 .nosub { color: var(--ng); font-size: 11px; font-weight: 700; }
