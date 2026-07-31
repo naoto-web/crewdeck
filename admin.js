@@ -93,7 +93,8 @@ function nameOfA(id) {
 // ── シフト作成 ────────────────────────────────
 
 async function renderBuild() {
-  try { await loadAdmin(); } catch (e) { toast(e.message, true); return; }
+  // 未保存の調整があるときだけキャッシュ維持。それ以外は毎回最新を取得（後から届く希望を取りこぼさない）
+  try { await loadAdmin(!Admin.dirty); } catch (e) { toast(e.message, true); return; }
   const data = Admin.data;
   const { cellFlags, msgs, workedDays } = computeWarnings();
   const pub = data.published;
