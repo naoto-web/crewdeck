@@ -73,6 +73,14 @@ function computeWarnings() {
       });
       msgs.push(`⚠️ ${d}日：${nameOfA(id)}が前後通し（ルール＝通しなし）`);
     });
+    // 夜→翌朝の検出（ルール＝夜に出た翌日の昼はなし）
+    if (d > 1) {
+      const overnight = (Admin.draftIdx[(d - 1) + '|p'] || []).filter(id => (Admin.draftIdx[d + '|a'] || []).includes(id));
+      overnight.forEach(id => {
+        (cellFlags[d + '|a'] = cellFlags[d + '|a'] || []).push('夜明け:' + nameOfA(id));
+        msgs.push(`⚠️ ${d}日前半：${nameOfA(id)}が前日の夜から連続（夜明け昼はなし）`);
+      });
+    }
   }
 
   admMembers().forEach(m => {
