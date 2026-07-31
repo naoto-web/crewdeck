@@ -20,6 +20,8 @@ async function renderWish() {
     <div class="hint">希望の締切：前月${cfg.wishDeadlineDay}日ごろ（詳しくはYから連絡）。締切まで何回でも出し直せます</div>
     ${data.myWishes ? `<div class="hint ok">前回提出：${esc(data.myWishes.submittedAt)}（${data.myWishes.count}回目）</div>`
                     : '<div class="hint warn">この月はまだ未提出です</div>'}
+    ${data.myWishes && data.myWishes.by && data.myWishes.by !== App.member.id
+      ? '<div class="hint">いまの内容はスタッフが代理で入力したものです。修正して出し直してOK</div>' : ''}
     <div class="bulk">
       まとめて：
       <button class="btn sm" data-bulk="o">全部○</button>
