@@ -42,8 +42,10 @@ async function renderWish() {
     for (let d = 1; d <= data.days; d++) {
       const row = document.createElement('div');
       row.className = 'wish-row' + (isWeekend(App.month, d) ? ' wknd' : '');
+      const tA = raceTag(data.raceInfo[d + '|a']), tP = raceTag(data.raceInfo[d + '|p']);
+      const tags = (tA || tP) ? `<div class="wr-tags">${tA ? '前:' + tA : ''}${tA && tP ? '　' : ''}${tP ? '後:' + tP : ''}</div>` : '';
       row.innerHTML = `
-        <span class="wr-day">${dayLabel(App.month, d)}</span>
+        <span class="wr-day">${dayLabel(App.month, d)}${tags}</span>
         <button class="wr-btn ${WISH[draft[d].a].cls}" data-d="${d}" data-s="a">${WISH[draft[d].a].mark}</button>
         <button class="wr-btn ${WISH[draft[d].p].cls}" data-d="${d}" data-s="p">${WISH[draft[d].p].mark}</button>`;
       list.appendChild(row);
@@ -105,9 +107,11 @@ async function renderSchedule() {
 
   let rows = '';
   for (let d = 1; d <= data.days; d++) {
+    const tA = raceTag(data.raceInfo[d + '|a']), tP = raceTag(data.raceInfo[d + '|p']);
+    const tags = (tA || tP) ? `<div class="wr-tags">${tA ? '前:' + tA : ''}${tA && tP ? '　' : ''}${tP ? '後:' + tP : ''}</div>` : '';
     rows += `
       <div class="sc-row ${isWeekend(App.month, d) ? 'wknd' : ''}">
-        <span class="sc-day">${dayLabel(App.month, d)}</span>
+        <span class="sc-day">${dayLabel(App.month, d)}${tags}</span>
         <span class="sc-slot">${chips(idx[d + '|a'])}</span>
         <span class="sc-slot">${chips(idx[d + '|p'])}</span>
       </div>`;
