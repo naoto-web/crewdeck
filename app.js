@@ -69,31 +69,54 @@ async function boot() {
 
 // ── ログイン ──────────────────────────────────
 
-function renderLogin(msg) {
+let loginSelectedName = null;
+
+async function renderLogin(msg) {
+  loginSelectedName = null;
   document.getElementById('app').innerHTML = `
     <div class="login">
       <div class="login-logo">シフト表</div>
       <div class="login-box">
-        <label>なまえ</label>
-        <input id="in-name" type="text" autocomplete="username" placeholder="配信名">
+        <label>なまえ（タップで選択）</label>
+        <div id="name-grid" class="name-grid"><span class="name-loading">読み込み中…</span></div>
         <label>PIN（4桁）</label>
         <input id="in-pin" type="tel" inputmode="numeric" maxlength="8" autocomplete="current-password" placeholder="####">
         ${msg ? '<div class="login-err">' + esc(msg) + '</div>' : ''}
         <button class="btn primary" id="btn-login">はじめる</button>
       </div>
-      <div class="login-note">なまえ・PINが分からないときはYへ</div>
+      <div class="login-note">PINが分からないときはスタッフへ</div>
     </div>`;
   document.getElementById('btn-login').onclick = doLogin;
   document.getElementById('in-pin').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+  const grid = document.getElementById('name-grid');
+  try {
+    const res = await api('names', {});
+    grid.innerHTML = res.names.map(n => `<button class="name-btn" data-n="${esc(n)}">${esc(n)}</button>`).join('');
+    grid.querySelectorAll('.name-btn').forEach(b => {
+      b.onclick = () => {
+        loginSelectedName = b.dataset.n;
+        grid.querySelectorAll('.name-btn').forEach(x => x.classList.toggle('sel', x === b));
+      };
+    });
+    // 前回ログインした名前を初期選択
+    const last = Store.cred();
+    if (last) {
+      const b = [...grid.querySelectorAll('.name-btn')].find(x => x.dataset.n === last.name);
+      if (b) b.click();
+    }
+  } catch (e) {
+    grid.innerHTML = '<span class="login-err">名前一覧を読み込めませんでした。電波を確認して<a href="javascript:location.reload()">再読み込み</a></span>';
+  }
 }
 
 async function doLogin() {
-  const name = document.getElementById('in-name').value.trim();
   const pin = document.getElementById('in-pin').value.trim();
-  if (!name || !pin) { toast('なまえとPINを入れてください', true); return; }
+  if (!loginSelectedName) { toast('なまえを選んでください', true); return; }
+  if (!pin) { toast('PINを入れてください', true); return; }
   try {
-    const res = await api('login', { name, pin });
-    Store.saveCred({ name, pin });
+    const res = await api('login', { name: loginSelectedName, pin });
+    Store.saveCred({ name: loginSelectedName, pin });
     App.member = res.member;
     renderShell();
   } catch (e) {
